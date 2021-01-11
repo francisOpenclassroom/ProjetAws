@@ -3,13 +3,38 @@ Description: >-
   AWS CloudFormation ELB Multizone WEB
 
 Resources:
-  myVPC:
+
+# Création du VPC
+
+  MainVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: 'false'
-      EnableDnsHostnames: 'false'
-      InstanceTenancy: default
       Tags:
-        - Key: foo
-          Value: bar
+        - Key: Name
+          Value: "MainVPC"
+
+# Subnet Public Zone A
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: "eu-west-3a"
+      CidrBlock:  10.0.0.0/24
+      VpcId:
+        Ref: MainVPC
+      Tags:
+        - Key: Name
+          Value:  "Subnet-A"
+
+# Subnet Public Zone A
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: "eu-west-3a"
+      CidrBlock:  10.0.1.0/24
+      VpcId:
+        Ref: MainVPC
+      Tags:
+        - Key: Name
+          Value:  "Subnet-A"
+
