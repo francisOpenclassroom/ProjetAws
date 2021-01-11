@@ -1,0 +1,62 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation VPC Template
+
+# Création du VPC
+Resources:
+  MainVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: 'Main-VPC'
+
+# Création du Subnet privé Zone A
+  SubnetPriveA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone:  eu-west-3a
+      CidrBlock:  10.0.0.0/24
+      Tags:
+        - Key:  Name
+          Value:  'MainVPC-Prive-A'
+      VpcId:
+        Ref: MainVPC
+
+# Création du Subnet public Zone A
+  SubnetPublicA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone:  eu-west-3a
+      CidrBlock:  10.0.100.0/24
+      Tags:
+        - Key:  Name
+          Value:  'MainVPC-Public-A'
+      VpcId:
+        Ref: MainVPC
+
+# Création du Subnet privé Zone B
+  SubnetPriveB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone:  eu-west-3b
+      CidrBlock:  10.0.1.0/24
+      Tags:
+        - Key:  Name
+          Value:  'MainVPC-Prive-B'
+      VpcId:
+        Ref: MainVPC
+
+# Création du Subnet public Zone B
+  SubnetPublicB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone:  eu-west-3b
+      CidrBlock:  10.0.101.0/24
+      Tags:
+        - Key:  Name
+          Value:  'MainVPC-Public-B'
+      VpcId:
+        Ref: MainVPC

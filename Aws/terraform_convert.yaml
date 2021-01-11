@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation VPC Template
+
+# Création du VPC
+Resources:
+  MainVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: 'Main-VPC'
+
+# Passerelle internet
+  MainInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: 'Passerelle Internet'
+
+# Attacher la passerelle internet
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: MainVPC
+      InternetGatewayId:
+        Ref: MainInternetGateway
+
+# Création de la table de routage
+  MainTableRoutage:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: MainVPC
+      Tags:
+        - Key:  Name
+          Value:  "Route_vers_internet"
+
+# Creation de la route vers la passerelle internet
+  MainRouteInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: MainInternetGateway
+      RouteTableId:
+        Ref:  MainTableRoutage
+
+# Création du subnet
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: "eu-west-3a"
+      CidrBlock:  10.0.0.0/24
+      VpcId:
+        Ref: MainVPC
+      Tags:
+        - Key: Name
+          Value:  "Subnet-1"
+
+# Association du Subnet à la table de routage
+  AttacheMainRoute:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref:  MainTableRoutage
+      SubnetId:
+        Ref:  Subnet1
+
+# Groupes de sécurité
+  SgHTTP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Flux HTTP
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        Ref:  MainVPC
+      Tags:
+        - Key: Name
+          Value : "Flux HTTP"
+  SgSSH:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Flux SSH
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        Ref: MainVPC
+      Tags:
+        - Key: Name
+          Value: "Flux SSH"
+
+# Interface réseau
+  IntReseau:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId:
+        Ref: Subnet1
+      PrivateIpAddress: 10.0.0.16
+      Tags:
+        - Key:  Name
+          Value:  "Interface reseau"
+
+# Elastic IP
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key:  Name
+          Value:  "Adresse Publique"
+
+# Serveur Ubuntu
+  ServeurWeb:
+    Type: AWS::EC2::Instance
+    Properties:
+
+
+
+
+
+
+
+
+
