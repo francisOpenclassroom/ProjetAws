@@ -5,7 +5,6 @@ Description: >-
 Resources:
 
 # Création du VPC
-
   MainVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -26,15 +25,145 @@ Resources:
         - Key: Name
           Value:  "Subnet-A"
 
-# Subnet Public Zone A
+# Subnet Public Zone B
   SubnetB:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: "eu-west-3a"
+      AvailabilityZone: "eu-west-3b"
       CidrBlock:  10.0.1.0/24
       VpcId:
         Ref: MainVPC
       Tags:
         - Key: Name
-          Value:  "Subnet-A"
+          Value:  "Subnet-B"
+#Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key : Name
+          Value : "Passerelle internet"
+
+# attachement de la passerelle au VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: MainVPC
+      InternetGatewayId:
+        Ref: InternetGateway
+
+# Adresse Publique EIP
+  ElasticIpA:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+      Tags:
+        - Key:  Name
+          Value:  "Elastic IP A"
+  ElasticIpB:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+      Tags:
+        - Key : Name
+          Value:  "Elastic IP B"
+
+# Passerelle NAT A
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref SubnetA
+      AllocationId: !GetAtt ElasticIpA.AllocationId
+    DependsOn:  AttachGateway
+
+# Passerelle NAT B
+  NatGatewayB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref SubnetB
+      AllocationId: !GetAtt ElasticIpB.AllocationId
+    DependsOn:  AttachGateway
+
+# table de routage A
+  RouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: "route-public-a"
+
+# table de routage B
+  RouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: "route-public-b"
+
+# Association table de routage A
+  AttachPublicRouteTableA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTableA
+      SubnetId: !Ref SubnetA
+
+# Association table de routage B
+  AttachPublicRouteTableB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTableB
+      SubnetId: !Ref SubnetB
+
+# Route public subnet A
+  PublicRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTableA
+
+# Route public subnet A
+  PublicRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTableB
+
+# Groupe de sécurité
+  InstanceSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: acces SSH via port 22 et HTTP via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: '0.0.0.0/0'
+
+  EC2InstanceA:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+          !/bin/bash
+          sudo docker run -tid -p 80:80 --name web --mount source=GinxVolume,target=/usr/share/nginx/html nginx:latest
+      InstanceType: 't2.micro'
+      SecurityGroupIds:
+        - !GetAtt "InstanceSG.GroupId"
+      KeyName: tp-terraform
+      ImageId: ami-01b6e24615f0f0602
+      SubnetId:
+        Ref: SubnetA
+      Tags:
+        - Key: Name
+          Value: "Test EC2 A"
+
 
