@@ -1,0 +1,94 @@
+# aws cloudformation deploy --template-file Intranet.yaml --stack-name Intranet --parameter-overrides MainStackName=p10VPC
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creation initiale du site Intranet
+Parameters:
+  MainstackName:
+    Description: >-
+      Nom de la stack précédente
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+    Default: p10VPC
+
+Resources:
+  WebServerInstance:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          All:
+            - ConfigureSampleApp
+        ConfigureSampleApp:
+          packages:
+            yum:
+              httpd: []
+          files:
+            /var/www/html/index.html:
+              content: !Join
+                - |+
+                - - >-
+                    <h1> - Bienvenue sur le Site Intranet du Projet 10 - </h1>
+              mode: '000644'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-00798d7180f25aac2
+
+      NetworkInterfaces:
+        - GroupSet:
+            - !ImportValue
+              'Fn::Sub': '${MainstackName}-SecurityGroupID'
+          AssociatePublicIpAddress: 'false'
+          DeviceIndex: '0'
+          DeleteOnTermination: 'true'
+          SubnetId: !ImportValue
+            'Fn::Sub': '${MainstackName}-SubnetAID'
+      UserData: !Base64
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe
+            - |
+              yum update -y aws-cfn-bootstrap
+            - |
+              # Install the files and packages from the metadata
+            - '/opt/aws/bin/cfn-init -v '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource WebServerInstance '
+            - '         --configsets All '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource WebServerInstance '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+Outputs:
+  URL:
+    Description: URL of the sample website
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt
+          - WebServerInstance
+          - PublicDnsName

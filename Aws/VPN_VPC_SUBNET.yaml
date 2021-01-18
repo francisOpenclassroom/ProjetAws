@@ -48,7 +48,6 @@ Resources:
         - Key:  Name
           Value: "Mon Subnet"
 
-
   VPNGateway:
     Type: 'AWS::EC2::VPNGateway'
     Properties:

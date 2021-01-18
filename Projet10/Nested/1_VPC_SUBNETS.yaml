@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  Creation du VPC
+
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: "VPC"
+  Subnets:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://projet10.s3.eu-west-3.amazonaws.com/2_SUBNETS.yaml
+      Parameters:
+        SharedParameters:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.SharedValueOutput
+      TimeoutInMinutes: 5
+
+Outputs:
+  MonVPC:
+    Value:
+      Ref: VPC
+    Export:
+      Name: MonVPC
+
+

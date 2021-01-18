@@ -26,7 +26,7 @@ Resources:
         - !Ref InstanceSecurityGroup
       KeyName: !Ref KeyName
       ImageId: ami-00798d7180f25aac2
-      AvailabilityZone: 'eu-west-3c'
+      AvailabilityZone: 'eu-west-3a'
       Tags:
         - Key: Name
           Value:  "Test EC2"
