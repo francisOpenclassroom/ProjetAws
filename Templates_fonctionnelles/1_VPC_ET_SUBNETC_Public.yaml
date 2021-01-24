@@ -1,0 +1,254 @@
+#TODO: aws cloudformation deploy --template-file 1_VPC_ET_SUBNETC_Public --stack-name TestVPC
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+
+Parameters:
+
+  VPNAddress:
+    Type: String
+    Description: IP Address of your VPN device
+    MinLength: '7'
+    MaxLength: '15'
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})'
+    ConstraintDescription: must be a valid IP address of the form x.x.x.x
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: "VPC"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGWAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "AZ 3a"
+
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "AZ 3b"
+
+  SubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: "AZ 3c"
+
+  EipC:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGatewayC:
+    DependsOn: VPCGWAttach
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EipC.AllocationId
+      SubnetId: !Ref SubnetC
+      Tags:
+        - Key: Name
+          Value: MainVPC-nat-C
+
+  TableRoutage:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  RoutesInternet:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGWAttach
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref TableRoutage
+
+  TableRoutageC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  RoutesInternetC:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGWAttach
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayC
+      RouteTableId: !Ref TableRoutageC
+
+
+  AssociationRoutesSubnetA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref TableRoutage
+
+  AssociationRoutesSubnetB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref TableRoutage
+
+  AssociationRoutesSubnetC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetC
+      RouteTableId: !Ref TableRoutageC
+
+  SgPublic:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "SSH vers Instances"
+      GroupName: "Trafic Internet"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+# 1 - VPN Gateway
+  VPNGateway:
+    Type: 'AWS::EC2::VPNGateway'
+    Properties:
+      Type: ipsec.1
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackName'
+
+# 2 - VPN Gateway Attachment
+  VPNGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      VpnGatewayId: !Ref VPNGateway
+
+# 3 - Customer Gateway
+  CustomerGateway:
+    Type: 'AWS::EC2::CustomerGateway'
+    Properties:
+      Type: ipsec.1
+      BgpAsn: '65000'
+      IpAddress: !Ref VPNAddress
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackName'
+        - Key: VPN
+          Value: !Join
+            - ''
+            - - 'Gateway to '
+              - !Ref VPNAddress
+
+# 3 - Connection VPN
+  VPNConnection:
+    Type: 'AWS::EC2::VPNConnection'
+    Properties:
+      Type: ipsec.1
+      StaticRoutesOnly: 'true'
+      CustomerGatewayId: !Ref CustomerGateway
+      VpnGatewayId: !Ref VPNGateway
+
+  VPNConnectionRoute:
+    Type: 'AWS::EC2::VPNConnectionRoute'
+    Properties:
+      VpnConnectionId: !Ref VPNConnection
+      DestinationCidrBlock: 192.168.100.0/24
+
+  PrivateRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackName'
+        - Key: Network
+          Value: VPN Connected Subnet
+
+  PrivateSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetC
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPNGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 192.168.100.0/24
+      GatewayId: !Ref VPNGateway
+
+
+
+#  InstanceTest:
+#    Type: AWS::EC2::Instance
+#    Properties:
+#      InstanceType: t2.micro
+#      ImageId: ami-00798d7180f25aac2
+#      KeyName: !Ref KeyName
+#      SubnetId: !Ref SubnetC
+#      PrivateIpAddress: 10.0.2.10
+#      SecurityGroupIds:
+#        - !GetAtt SgPublic.GroupId
+
+Outputs:
+
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPCID'
+  SubnetC:
+    Description: The subnet ID to use for public web servers
+    Value: !Ref SubnetC
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetCID'
+  ServerSecurityGroup:
+    Description: The security group ID to use for public web servers
+    Value: !GetAtt
+      - SgPublic
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupID'

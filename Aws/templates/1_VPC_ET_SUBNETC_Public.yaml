@@ -1,15 +1,8 @@
-#TODO:
+#TODO: aws cloudformation deploy --template-file 1_VPC_ET_SUBNETC_Public --stack-name TestVPC
 
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: >-
-
-Parameters:
-
-  KeyName:
-      Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
-      Type: 'AWS::EC2::KeyPair::KeyName'
-      ConstraintDescription: must be the name of an existing EC2 KeyPair.
 
 Resources:
 
@@ -108,25 +101,43 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
 
-  InstanceTest:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t2.micro
-      ImageId: ami-00798d7180f25aac2
-      KeyName: tp-terraform
-      SubnetId: !Ref SubnetC
-      PrivateIpAddress: 10.0.2.10
-      SecurityGroupIds:
-        - !GetAtt SgPublic.GroupId
+#  InstanceTest:
+#    Type: AWS::EC2::Instance
+#    Properties:
+#      InstanceType: t2.micro
+#      ImageId: ami-00798d7180f25aac2
+#      KeyName: !Ref KeyName
+#      SubnetId: !Ref SubnetC
+#      PrivateIpAddress: 10.0.2.10
+#      SecurityGroupIds:
+#        - !GetAtt SgPublic.GroupId
 
+Outputs:
 
-
-
-
-
-
-#Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPCID'
+  SubnetC:
+    Description: The subnet ID to use for public web servers
+    Value: !Ref SubnetC
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetCID'
+  ServerSecurityGroup:
+    Description: The security group ID to use for public web servers
+    Value: !GetAtt
+      - SgPublic
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupID'
