@@ -1,5 +1,5 @@
 # TODO: aws cloudformation deploy --template-file Intance_subnet_public.yaml --stack-name Wordpress --capabilities CAPABILITY_NAMED_IAM --parameter-overrides KeyName=tp-terraform DBName=wordpress  MasterUserName=wordpress MasterPassword=password
-
+# TODO: Docker compose et execution du conteneur
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
 
@@ -241,6 +241,9 @@ Resources:
               - DatabaseInstance
               - Endpoint.Address
             - '> /home/ec2-user/.env'
+            - |+
+
+            - 'cat /home/ec2-user/.env > /home/ec2-user/test.txt'
             - |+
 #      UserData:
 #        Fn::Base64: !Sub |
