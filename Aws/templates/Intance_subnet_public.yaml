@@ -204,26 +204,66 @@ Resources:
 
   EC2Host:
     Type: 'AWS::EC2::Instance'
+
     DependsOn: GatewayToInternet
     Properties:
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          sudo yum -y update
-          sudo amazon-linux-extras install epel
-          sudo amazon-linux-extras install docker
-          sudo service docker start
-          sudo systemctl enable docker
-          sudo usermod -a -G docker ec2-user
-          sudo yum -y install fuse fuse-libs
-          sudo yum -y install python-pip
-          sudo sed -i'' 's/^
-          mkdir /home/ec2-user/local-mnt
+      UserData: !Base64
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe
+            - |
+              yum update -y aws-cfn-bootstrap
+              aws s3 cp s3://projet10/wp-config.php /home/ec2-user/wp-config.php
+              amazon-linux-extras install epel
+              amazon-linux-extras install docker
+              service docker start
+              systemctl enable docker
+              usermod -a -G docker ec2-user
+              yum -y update
+              yum -y install fuse fuse-libs
+              yum -y install python-pip
+              pip install yas3fs
+              sed -i'' 's/^# *user_allow_other/user_allow_other/' /etc/fuse.conf
+              mkdir /home/ec2-user/local-mnt
+              yas3fs s3://projet10 /home/ec2-user/local-mnt
+            - 'echo -e "DB_NAME="'
+            - !Ref 'DBName'
+            - '"\n"'
+            - '"DB_PASSWORD="'
+            - !Ref 'MasterPassword'
+            - '"\n"'
+            - '"DB_USERNAME="'
+            - !Ref 'MasterUserName'
+            - '"\n"'
+            - '"DB_HOST="'
+            - !GetAtt
+              - DatabaseInstance
+              - Endpoint.Address
+            - '> /home/ec2-user/.env'
+            - |+
+#      UserData:
+#        Fn::Base64: !Sub |
+#          !/bin/bash
+#          sudo yum -y update
+#          sudo amazon-linux-extras install epel
+#          sudo amazon-linux-extras install docker
+#          sudo service docker start
+#          sudo systemctl enable docker
+#          sudo usermod -a -G docker ec2-user
+#          sudo yum -y install fuse fuse-libs
+#          sudo yum -y install python-pip
+#          sudo pip install yas3fs
+#          sudo sed -i'' 's/^# *user_allow_other/user_allow_other/' /etc/fuse.conf
+#          mkdir /home/ec2-user/local-mnt
+#          yas3fs s3://projet10 /home/ec2-user/local-mnt
+#          docker run -dp 80:80 --name wordpress -w /var/www/html/ -v /home/ec2-user/local-mnt:/var/www/html/wp-content wordpress:latest
+
       InstanceType: t2.micro
       KeyName: !Ref KeyName
       ImageId: ami-00798d7180f25aac2
       IamInstanceProfile: !Ref InstanceProfile
-      AvailabilityZone: eu-west-3a
+#      AvailabilityZone: eu-west-3a
 
       NetworkInterfaces:
         - GroupSet:
