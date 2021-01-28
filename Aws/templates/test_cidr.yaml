@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+      Tags:
+        - Key: Name
+          Value: VPC
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.10.0/24
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value : PublicSubnetA
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.20.0/24
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: eu-west-3b
+      Tags:
+        - Key: Name
+          Value: PublicSubnetB
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.30.0/24
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: PublicSubnetC
+
+  DatabaseSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.100.0/24
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value: DatabaseSubnet
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.110.0/24
+      MapPublicIpOnLaunch: False
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetA
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.120.0/24
+      MapPublicIpOnLaunch: False
+      AvailabilityZone: eu-west-3b
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetB
+
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.130.0/24
+      MapPublicIpOnLaunch: False
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetC
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref RouteTable
+
+
+Outputs:
+
+  VPC:
+    Description: VPC
+    Value: !Ref Vpc
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC

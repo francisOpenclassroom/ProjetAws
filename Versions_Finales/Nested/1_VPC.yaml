@@ -1,0 +1,302 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  Creation du reseau
+
+Parameters:
+
+  ReseauDMZ:
+    Description: 'Plage autorisée dans la DMZ'
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription:  x.x.x.x/x.
+
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: MainVPC
+
+# Subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Public-A
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3b
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Public-B
+
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.3.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Public-B
+
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.100.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Private-C
+
+# -------- Passerelles -------- #
+
+# Passerelle Internet
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: VPC
+
+# Attachement de IGW
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+# -------- Routage -------- #
+
+# table de routage publique
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Public
+
+# route publique
+  PublicRoute: # Route vers la passerelle internet:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref PublicRouteTable
+
+
+
+
+# Table de routage prive
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Private
+
+
+# Route avant installation de l'instance intranet
+  PrivatetCInternetSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetC
+      RouteTableId: !Ref PrivateRouteTable
+
+  ElasticLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+    Properties:
+      Subnets: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+      CrossZone: 'true'
+      Listeners:
+        - LoadBalancerPort: '80'
+          InstancePort: '80'
+          Protocol: HTTP
+      HealthCheck:
+        Target: 'HTTP:80/'
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+
+#  ApplicationLoadBalancer:
+#    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+#    Properties:
+#      Subnets: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+#
+#  ALBTargetGroup:
+#    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+#    Properties:
+#      Port: 80
+#      Protocol: HTTP
+#      VpcId: !Ref VPC
+
+# -------- Groupes de sécurité -------- #
+
+  NATSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: AttachGateway
+    Properties:
+      GroupName: !Sub NATSecurityGroup-${AWS::StackName}
+      GroupDescription: Autorise le flux en provenance du reseau interne
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '0'
+          ToPort: '1024'
+          CidrIp: !GetAtt VPC.CidrBlock
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: '0'
+          ToPort: '65535'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: '0'
+          ToPort: '65535'
+          CidrIp: 0.0.0.0/0
+
+  EC2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: SG pour Wordpress
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  DMZSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "SSH - HTTP - HTTPS"
+      GroupDescription: SG pour Intranet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - Description: SSH
+          IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref ReseauDMZ
+        - Description: Http
+          IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref ReseauDMZ
+
+
+Outputs:
+
+  VPC:
+    Description: VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC
+
+  PublicSubnetA:
+    Description: Subnet Public 1 AZ A
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetA
+
+  PublicSubnetB:
+    Description: Subnet Public 2 AZ B
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetB
+
+  PublicSubnetC:
+    Description: Subnet Public  AZ C
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetC
+
+  PrivateSubnetC:
+    Description: Subnet Prive  AZ C
+    Value: !Ref PrivateSubnetC
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnetC
+
+  InternetGateway:
+    Description: IGW
+    Value: !Ref InternetGateway
+    Export:
+      Name: !Sub ${AWS::StackName}-InternetGateway
+
+  PublicRoutetable:
+    Description: Public Internet
+    Value: !Ref PublicRouteTable
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicRouteTable
+
+  PublicRoute:
+    Description: Route vers internet GW
+    Value: !Ref PublicRoute
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicRoute
+
+  DMZSg:
+    Description: Groupe de sécurité Instance privee
+    Value: !Ref DMZSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-DMZSg
+
+  WebServerSecurityGroup:
+    Description: Le groupe de securite des instances Wordpress
+    Value:
+      Fn::GetAtt:
+        - EC2SecurityGroup
+        - GroupId
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SecurityGroupID"
+
+      Export:
+        Name: !Sub ${AWS::StackName}-EC2Sg
+
+  IntranetSecurityGroup:
+    Description: Le groupe de securite des instances Wordpress
+    Value:
+      Fn::GetAtt:
+        - EC2SecurityGroup
+        - GroupId
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SecurityGroupID"
+
+      Export:
+        Name: !Sub ${AWS::StackName}-EC2Sg
+
+

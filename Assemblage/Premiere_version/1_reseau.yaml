@@ -1,0 +1,190 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+      Tags:
+        - Key: Name
+          Value: VPC
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.10.0/24
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value : PublicSubnetA
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.20.0/24
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: eu-west-3b
+      Tags:
+        - Key: Name
+          Value: PublicSubnetB
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.30.0/24
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: PublicSubnetC
+
+  DatabaseSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.100.0/24
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value: DatabaseSubnet
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.110.0/24
+      MapPublicIpOnLaunch: False
+      AvailabilityZone: eu-west-3a
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetA
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.120.0/24
+      MapPublicIpOnLaunch: False
+      AvailabilityZone: eu-west-3b
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetB
+
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.130.0/24
+      MapPublicIpOnLaunch: False
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref RouteTable
+
+
+
+
+Outputs:
+
+  VPC:
+    Description: VPC
+    Value: !Ref Vpc
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC
+
+  RouteTable:
+    Description: Table de routage
+    Value: !Ref RouteTable
+    Export:
+      Name: !Sub ${AWS::StackName}-RouteTable
+
+  VPCCidrBlock:
+    Description: Cidr du VPC
+    Value: !GetAtt Vpc.CidrBlock
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcCidrBlock
+
+  PublicSubnetA:
+    Description: Subnet Public A
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetA
+
+  PublicSubnetB:
+    Description: Subnet Public B
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetB
+
+  PublicSubnetC:
+    Description: Subnet Public C
+    Value: !Ref PublicSubnetC
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetC
+
+  PrivateSubnetA:
+    Description: Reseau prive A
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnetA
+
+  PrivateSubnetB:
+    Description: Reseau prive B
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnetB
+
+  PrivateSubnetC:
+    Description: Reseau prive C
+    Value: !Ref PrivateSubnetC
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnetC
+
+
+
+
+  InternetGateway:
+    Description: Passerelle Internet
+    Value: !Ref InternetGateway
+    Export:
+      Name: !Sub ${AWS::StackName}-IGW

@@ -33,7 +33,7 @@ Parameters:
     Type: String
 
 
-
+# -------- Reseau -------- #
 Resources:
   VPC:
     Type: 'AWS::EC2::VPC'
@@ -51,8 +51,19 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.0.0/24
+      CidrBlock: 10.0.1.0/24
       AvailabilityZone: eu-west-3a
+
+      Tags:
+        - Key: Name
+          Value: "Public Subnet A"
+
+  PublicSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: eu-west-3b
       Tags:
         - Key: Name
           Value: "Public Subnet A"
@@ -61,7 +72,7 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.100.0/24
+      CidrBlock: 10.0.10.0/24
       AvailabilityZone: eu-west-3a
       Tags:
         - Key: Name
@@ -71,15 +82,21 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.200.0/24
+      CidrBlock: 10.0.20.0/24
       AvailabilityZone: eu-west-3b
       Tags:
         - Key: Name
           Value: "Subnet prive B"
 
-
-
-
+  PrivateSubnetC:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.30.0/24
+      AvailabilityZone: eu-west-3c
+      Tags:
+        - Key: Name
+          Value: "Subnet prive C"
 
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
@@ -112,90 +129,19 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  PublicSubnetRouteTableAssociation:
+  PublicSubnetARouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
       SubnetId: !Ref PublicSubnetA
       RouteTableId: !Ref PublicRouteTable
 
-  PublicNetworkAcl:
-    Type: 'AWS::EC2::NetworkAcl'
+  PublicSubnetBRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: "ACL Publique"
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
 
-  InboundHTTPPublicNetworkAclEntry:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref PublicNetworkAcl
-      RuleNumber: '100'
-      Protocol: '6'
-      RuleAction: allow
-      Egress: 'false'
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: '80'
-        To: '80'
-
-  InboundHTTPSPublicNetworkAclEntry:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref PublicNetworkAcl
-      RuleNumber: '101'
-      Protocol: '6'
-      RuleAction: allow
-      Egress: 'false'
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: '3306'
-        To: '3306'
-
-  InboundSSHPublicNetworkAclEntry:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref PublicNetworkAcl
-      RuleNumber: '102'
-      Protocol: '6'
-      RuleAction: allow
-      Egress: 'false'
-      CidrBlock: !Ref SSHLocation
-      PortRange:
-        From: '22'
-        To: '22'
-
-  InboundEphemeralPublicNetworkAclEntry:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref PublicNetworkAcl
-      RuleNumber: '103'
-      Protocol: '6'
-      RuleAction: allow
-      Egress: 'false'
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: '1024'
-        To: '65535'
-
-  OutboundPublicNetworkAclEntry:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref PublicNetworkAcl
-      RuleNumber: '100'
-      Protocol: '6'
-      RuleAction: allow
-      Egress: 'true'
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: '0'
-        To: '65535'
-
-  PublicSubnetNetworkAclAssociation:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      SubnetId: !Ref PublicSubnetA
-      NetworkAclId: !Ref PublicNetworkAcl
+# -------- Attchement du profile IAM a l'instance avec accès complet à S3 ------- #
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -204,47 +150,9 @@ Resources:
 
   EC2Host:
     Type: 'AWS::EC2::Instance'
-
     DependsOn: GatewayToInternet
     Properties:
-#      UserData: !Base64
-#        'Fn::Join':
-#          - ''
-#          - - |
-#              !/bin/bash -xe
-#            - |
-#              yum update -y aws-cfn-bootstrap
-#              aws s3 cp s3://projet10/wp-config.php /home/ec2-user/wp-config.php
-#              amazon-linux-extras install epel
-#              amazon-linux-extras install docker
-#              service docker start
-#              systemctl enable docker
-#              usermod -a -G docker ec2-user
-#              yum -y update
-#              yum -y install fuse fuse-libs
-#              yum -y install python-pip
-#              pip install yas3fs
-#              sed -i'' 's/^# *user_allow_other/user_allow_other/' /etc/fuse.conf
-#              mkdir /home/ec2-user/local-mnt
-#              yas3fs s3://projet10 /home/ec2-user/local-mnt
-#            - 'echo -e "DB_NAME="'
-#            - !Ref 'DBName'
-#            - '"\n"'
-#            - '"DB_PASSWORD="'
-#            - !Ref 'MasterPassword'
-#            - '"\n"'
-#            - '"DB_USERNAME="'
-#            - !Ref 'MasterUserName'
-#            - '"\n"'
-#            - '"DB_HOST="'
-#            - !GetAtt
-#              - DatabaseInstance
-#              - Endpoint.Address
-#            - '> /home/ec2-user/.env'
-#            - |+
-#
-#            - 'cat /home/ec2-user/.env > /home/ec2-user/test.txt'
-#            - |+
+
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -269,21 +177,6 @@ Resources:
           sudo pip install docker-compose
           yas3fs s3://projet10 /home/ec2-user/local-mnt
           sh /home/ec2-user/docker-run
-
-
-      #          sudo yum -y update
-#          sudo amazon-linux-extras install epel
-#          sudo amazon-linux-extras install docker
-#          sudo service docker start
-#          sudo systemctl enable docker
-#          sudo usermod -a -G docker ec2-user
-#          sudo yum -y install fuse fuse-libs
-#          sudo yum -y install python-pip
-#          sudo pip install yas3fs
-#          sudo sed -i'' 's/^# *user_allow_other/user_allow_other/' /etc/fuse.conf
-#          mkdir /home/ec2-user/local-mnt
-    #          yas3fs s3://projet10 /home/ec2-user/local-mnt
-#          docker run -dp 80:80 --name wordpress -w /var/www/html/ -v /home/ec2-user/local-mnt:/var/www/html/wp-content wordpress:latest
 
       InstanceType: t2.micro
       KeyName: !Ref KeyName
@@ -314,6 +207,7 @@ Resources:
           FromPort: '80'
           ToPort: '80'
           CidrIp: 0.0.0.0/0
+
 
   DBEC2SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'

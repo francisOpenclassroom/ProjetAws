@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+
+Parameters:
+
+  NetworkStackName:
+    Description: >-
+      Nom de la stack précédente
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+    Default: network
+
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: !ImportValue
+      'Fn::Sub': '${NetworkStackName}-PrivateSubnetC'
+
+
+Resources:
+  ElasticLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+    Properties:
+      Subnets: !Ref Subnets
+
+      CrossZone: 'true'
+      Listeners:
+        - LoadBalancerPort: '80'
+          InstancePort: '80'
+          Protocol: HTTP
+      HealthCheck:
+        Target: 'HTTP:80/'
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+
+
